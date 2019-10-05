@@ -3,30 +3,33 @@
   tasks:
     - name: Install aptitude using apt
       apt: name=aptitude state=latest update_cache=yes force_apt_get=yes
-
     - name: Install required system packages
       apt: name={{ item }} state=latest update_cache=yes
-      loop: [ 'apt-transport-https', 'ca-certificates', 'curl', 'software-properties-common', 'python3-pip', 'virtualenv', 'python3-setuptools']
-
+      loop: [ 'apt-transport-https', 'ca-certificates', 'curl', 'software-properties-common', 'python3-pip', 'virtualenv', 'python3-setuptools
+']
     - name: Add Docker GPG apt Key
       apt_key:
         url: https://download.docker.com/linux/ubuntu/gpg
         state: present
-
     - name: Add Docker Repository
       apt_repository:
         repo: deb https://download.docker.com/linux/ubuntu bionic stable
         state: present
-
     - name: Update apt and install docker-ce
       apt: update_cache=yes name=docker-ce state=latest
-
     - name: Install Docker Module for Python
       pip:
         name: docker
+
 - hosts: instance3
   become: true
   become_method: sudo
+  vars:
+    jenkins_user: admin
+    jenkins_password: admin
+    jenkins_host: http://localhost:8080
+    jenkins_job: first
+    jenkins_token: admin
   tasks:
     - name: Update the software package repository
       apt:
@@ -38,18 +41,19 @@
         name: "{{ item }}"
         state: present
       with_items:
-        - openjdk-8-jre-headless
+        - openjdk-8-jdk
         - git
         - texlive-latex-extra
         - wget
         - deltarpm
+        - maven
 
     - name: Add Jenkins apt repository key.
       apt_key:
          url: https://pkg.jenkins.io/debian/jenkins.io.key
          state: present
-
-    - name: Add Jenkins apt repository.
+         
+     - name: Add Jenkins apt repository.
       apt_repository:
          repo: deb https://pkg.jenkins.io/debian binary/
          state: present
@@ -59,8 +63,8 @@
       apt:
         name: "jenkins"
         state: present
-        
-     - name: Allow port 8080
+
+    - name: Allow port 8080
       shell: iptables -I INPUT -p tcp --dport 8080 -m state --state NEW,ESTABLISHED -j ACCEPT
 
     - name: Start the server
@@ -75,7 +79,7 @@
       stat:
         path: /var/lib/jenkins/secrets/initialAdminPassword
       register: st
-
+      
     - name: Get Admin Password
       become: yes
       become_method: sudo
@@ -91,8 +95,8 @@
 
     - wait_for:
         port: 9000
-        
-     - name: Create artifactory container
+
+    - name: Create artifactory container
       docker_container:
         name: artifactory
         image: docker.bintray.io/jfrog/artifactory-oss:latest
@@ -100,5 +104,31 @@
         state: started
         env:
             EXTRA_JAVA_OPTIONS: -Xms512m -Xmx2g -Xss256k -XX:+UseG1GC
+    
     - wait_for:
-        port: 8081   
+        port: 8081  
+        
+     - name: Downloading required python-library
+      pip:
+        name: lxml
+
+    - name: Downloading required python-library
+      pip:
+        name:  python-jenkins
+
+    - name: Creating a jenkins job
+      jenkins_job:
+        config:  "{{ lookup('file', './job_config/config.xml') }}"
+        name: "{{ jenkins_job }}"
+        password: "{{ jenkins_password }}"
+        url: "{{ jenkins_host }}"
+        user: "{{ jenkins_user }}"
+
+    - name: Queue build of a project in Jenkins
+      uri:
+         url: " {{ jenkins_host }}/job/{{ jenkins_job }}/build?token={{ jenkins_token }}"
+         user: "{{ jenkins_user }}"
+         password: "{{ jenkins_password }}"
+         method: GET
+         force_basic_auth: yes
+         status_code: 201    
