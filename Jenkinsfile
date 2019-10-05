@@ -87,7 +87,7 @@ pipeline
 		{
 			steps
 			{
-				sh "mvn deploy:deploy-file"
+				sh "mvn deploy"
 			}
 		}/*
 		stage ('deploy to tomcat')
