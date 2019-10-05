@@ -1,0 +1,31 @@
+add java_home 
+for sonarqube:
+   add webhook http://jenkinsurl/sonarqube-webhook
+for artifactory:
+   add in pom.xml and setings.xml
+   in pom:
+    <distributionManagement>
+        <repository>
+            <id>central</id>
+            <name>a3b2ee5e23d3-releases</name>
+            <url>http://35.238.87.231:8081/artifactory/ansible-docker</url>
+        </repository>
+        <snapshotRepository>
+            <id>snapshots</id>
+            <name>a3b2ee5e23d3-snapshots</name>
+            <url>http://35.238.87.231:8081/artifactory/ansible-docker</url>
+        </snapshotRepository>
+    </distributionManagement>
+    
+    in settings.xml:
+      <server>
+      <id>central</id>
+      <username>admin</username>
+      <password>password</password>
+     </server>
+     <server>
+      <id>snapshots</id>
+      <username>admin</username>
+      <password>password</password>
+     </server>
+      
